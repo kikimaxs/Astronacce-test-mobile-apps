@@ -192,6 +192,68 @@ bool isDev = ApiConfig.isDevelopmentMode;
 String currentMode = ApiConfig.currentModeDescription;
 ```
 
+## APK Builds
+- **Link APK:** [Astronacci-Prod.apk](https://drive.google.com/file/d/1idx8OkQ6aMV3KyU8JSEudCu3w2kvw4w-/view?usp=drive_link)
+- **Catatan:** Siap digunakan langsung tanpa perlu menjalankan server lokal
+- **Konfigurasi:** `_useDevelopmentMode = false`
+- **Target API:** Production Vercel URL
+
+### Build Instructions
+
+#### Building Development APK
+1. **Configure for development:**
+   ```dart
+   // lib/config/api_config.dart
+   static const bool _useDevelopmentMode = true;
+   ```
+
+2. **Build APK:**
+   ```bash
+   flutter build apk --release --target-platform android-arm64
+   ```
+
+3. **Rename file:**
+   ```bash
+   mv build/app/outputs/flutter-apk/app-release.apk astronacce_dev_v1.0.0.apk
+   ```
+
+#### Building Production APK
+1. **Configure for production:**
+   ```dart
+   // lib/config/api_config.dart
+   static const bool _useDevelopmentMode = false;
+   ```
+
+2. **Build APK:**
+   ```bash
+   flutter build apk --release --target-platform android-arm64
+   ```
+
+3. **Rename file:**
+   ```bash
+   mv build/app/outputs/flutter-apk/app-release.apk astronacce_prod_v1.0.0.apk
+   ```
+
+### Testing Notes
+
+#### Development APK Testing
+- Pastikan backend server berjalan di `http://localhost:3000`
+- Perangkat Android harus terhubung ke jaringan yang sama dengan development server
+- Ganti IP `192.168.1.100` dengan IP lokal komputer Anda
+- Untuk mendapatkan IP lokal:
+  ```bash
+  # macOS/Linux
+  ifconfig | grep "inet " | grep -v 127.0.0.1
+  
+  # Windows
+  ipconfig | findstr "IPv4"
+  ```
+
+#### Production APK Testing
+- Tidak memerlukan server lokal
+- Langsung terhubung ke production API
+- Memerlukan koneksi internet yang stabil
+
 ## Email Configuration
 
 ### Gmail Setup (Recommended for Development)

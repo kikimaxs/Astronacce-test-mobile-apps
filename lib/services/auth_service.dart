@@ -130,12 +130,14 @@ class AuthService {
       
       print('🔄 Sending forgot password request for: $email');
       print('🌐 Using URL: $baseUrl/forgot-password');
+      print('🔧 Current API mode: ${ApiConfig.currentModeDescription}');
       
       final response = await http.post(
         Uri.parse('$baseUrl/forgot-password'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': 'AstronanceApp/1.0',
         },
         body: json.encode({
           'email': email,
@@ -143,6 +145,8 @@ class AuthService {
       ).timeout(const Duration(seconds: 15));
 
       print('📝 Forgot password response: ${response.statusCode}');
+      print('📝 Response headers: ${response.headers}');
+      print('📝 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         print('✅ Password reset email sent successfully');
@@ -154,12 +158,18 @@ class AuthService {
         };
       } else {
         final error = json.decode(response.body);
+        print('❌ Server error response: $error');
         throw Exception(error['error'] ?? 'Failed to send reset email');
       }
     } catch (e) {
       print('❌ Forgot password error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      
       if (e.toString().contains('Connection refused') || 
-          e.toString().contains('Failed host lookup')) {
+          e.toString().contains('Failed host lookup') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('HandshakeException') ||
+          e.toString().contains('TimeoutException')) {
         // Reset cache dan coba endpoint lain
         ApiConfig.resetCache();
         throw Exception('Cannot connect to server. Trying alternative endpoint...');
