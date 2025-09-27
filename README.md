@@ -2,6 +2,12 @@
 
 A complete Flutter application with Node.js backend featuring user authentication, forgot password functionality, and user management.
 
+## APK Builds
+- **Link APK:** [Astronacci-Prod.apk](https://drive.google.com/file/d/1idx8OkQ6aMV3KyU8JSEudCu3w2kvw4w-/view?usp=drive_link)
+- **Catatan:** Siap digunakan langsung tanpa perlu menjalankan server lokal
+- **Konfigurasi:** `_useDevelopmentMode = false`
+- **Target API:** Production Vercel URL
+
 ## Backend Repository
 
 **Important:** The backend is now separated into its own repository for better maintainability and deployment.
@@ -191,12 +197,6 @@ ApiConfig.forceUseProduction();
 bool isDev = ApiConfig.isDevelopmentMode;
 String currentMode = ApiConfig.currentModeDescription;
 ```
-
-## APK Builds
-- **Link APK:** [Astronacci-Prod.apk](https://drive.google.com/file/d/1idx8OkQ6aMV3KyU8JSEudCu3w2kvw4w-/view?usp=drive_link)
-- **Catatan:** Siap digunakan langsung tanpa perlu menjalankan server lokal
-- **Konfigurasi:** `_useDevelopmentMode = false`
-- **Target API:** Production Vercel URL
 
 ### Build Instructions
 
