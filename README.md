@@ -2,6 +2,14 @@
 
 A complete Flutter application with Node.js backend featuring user authentication, forgot password functionality, and user management.
 
+## Backend Repository
+
+**Important:** The backend is now separated into its own repository for better maintainability and deployment.
+
+🔗 **Backend Repository:** [https://github.com/kikimaxs/astronance-api](https://github.com/kikimaxs/astronance-api)
+
+Please clone and set up the backend separately from the above repository.
+
 ## Features
 
 ### Authentication
@@ -9,6 +17,7 @@ A complete Flutter application with Node.js backend featuring user authenticatio
 - ✅ User Login with JWT tokens
 - ✅ Forgot Password with email verification
 - ✅ Password Reset with secure tokens
+- ✅ Direct Password Reset functionality
 - ✅ Automatic logout and session management
 
 ### User Management
@@ -25,7 +34,6 @@ A complete Flutter application with Node.js backend featuring user authenticatio
 ### Security Features
 - ✅ Password hashing with bcrypt
 - ✅ JWT token authentication
-- ✅ Password strength validation
 - ✅ Secure password reset tokens (1-hour expiry)
 - ✅ Input validation and sanitization
 
@@ -49,9 +57,12 @@ A complete Flutter application with Node.js backend featuring user authenticatio
 
 ### Backend Setup
 
-1. **Navigate to backend directory:**
+**Note:** The backend is now in a separate repository. Please follow these steps:
+
+1. **Clone the backend repository:**
    ```bash
-   cd backend
+   git clone https://github.com/kikimaxs/astronance-api.git
+   cd astronance-api
    ```
 
 2. **Install dependencies:**
@@ -95,20 +106,91 @@ A complete Flutter application with Node.js backend featuring user authenticatio
 
 ### Flutter Setup
 
-1. **Navigate to project root:**
-   ```bash
-   cd ..
-   ```
-
-2. **Install Flutter dependencies:**
+1. **Install Flutter dependencies:**
    ```bash
    flutter pub get
+   ```
+
+2. **Configure API Environment (Important!):**
+   
+   The app can switch between local development and production APIs. Edit `lib/config/api_config.dart`:
+
+   **For Local Development:**
+   ```dart
+   static const bool _useDevelopmentMode = true;  // Set to true for local
+   ```
+
+   **For Production:**
+   ```dart
+   static const bool _useDevelopmentMode = false; // Set to false for production
    ```
 
 3. **Run the app:**
    ```bash
    flutter run
    ```
+
+   **Important:** After changing the API configuration, always restart the app:
+   ```bash
+   # Stop the current app (Ctrl+C) then run again
+   flutter run
+   ```
+
+## API Environment Switching
+
+### Switching to Local Development
+
+1. **Start your local backend server** (from the backend repository):
+   ```bash
+   cd astronance-api
+   npm run dev
+   ```
+
+2. **Configure Flutter app for local development:**
+   
+   Edit `lib/config/api_config.dart`:
+   ```dart
+   static const bool _useDevelopmentMode = true;
+   ```
+
+3. **Restart the Flutter app:**
+   ```bash
+   flutter run
+   ```
+
+   The app will now use `http://localhost:3000` for API calls.
+
+### Switching to Production
+
+1. **Configure Flutter app for production:**
+   
+   Edit `lib/config/api_config.dart`:
+   ```dart
+   static const bool _useDevelopmentMode = false;
+   ```
+
+2. **Restart the Flutter app:**
+   ```bash
+   flutter run
+   ```
+
+   The app will now use the production Vercel URL for API calls.
+
+### Programmatic Switching (Advanced)
+
+You can also switch environments programmatically:
+
+```dart
+// Force development mode
+ApiConfig.forceUseDevelopment();
+
+// Force production mode
+ApiConfig.forceUseProduction();
+
+// Check current mode
+bool isDev = ApiConfig.isDevelopmentMode;
+String currentMode = ApiConfig.currentModeDescription;
+```
 
 ## Email Configuration
 
@@ -150,6 +232,7 @@ SMTP_PORT=587
 - `POST /api/auth/login` - User login
 - `POST /api/auth/forgot-password` - Request password reset
 - `POST /api/auth/reset-password` - Reset password with token
+- `POST /api/auth/direct-password-reset` - Direct password reset (Production only)
 - `GET /api/auth/profile` - Get user profile (protected)
 - `PUT /api/auth/profile` - Update user profile (protected)
 
@@ -196,5 +279,21 @@ In production, set `NODE_ENV=production` and the reset token will only be sent v
 
 - **Email:** admin@example.com
 - **Password:** password
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Route not found" error during password reset:**
+   - Make sure you're using production mode (`_useDevelopmentMode = false`) for direct password reset
+   - Or ensure your local backend has the `/direct-password-reset` endpoint
+
+2. **Connection refused errors:**
+   - Check if the backend server is running on the correct port
+   - Verify the API configuration in `api_config.dart`
+
+3. **API switching not working:**
+   - Always restart the Flutter app after changing `_useDevelopmentMode`
+   - Use `flutter run` (not hot reload) for API configuration changes
 
 ## Project Structure
