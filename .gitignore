@@ -36,6 +36,7 @@ migrate_working_dir/
 # Symbolication related
 app.*.symbols
 
+
 # Obfuscation related
 app.*.map.json
 
@@ -43,3 +44,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Backend Node.js related
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/coverage/
+backend/*.log
