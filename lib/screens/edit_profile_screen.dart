@@ -512,12 +512,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     labelText: 'Nomor Telepon',
                     prefixIcon: Icon(Icons.phone),
                     border: OutlineInputBorder(),
-                    helperText: 'Masukkan nomor telepon (opsional)',
+                    helperText: 'Masukkan nomor telepon dimulai dengan 08 (opsional)',
                   ),
                   validator: (value) {
                     if (value != null && value.isNotEmpty) {
                       if (value.length < 10) {
                         return 'Nomor telepon minimal 10 digit';
+                      }
+                      if (!value.startsWith('08')) {
+                        return 'Nomor telepon harus dimulai dengan 08';
                       }
                     }
                     return null;

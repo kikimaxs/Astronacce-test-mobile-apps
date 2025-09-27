@@ -3,17 +3,12 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  // Gunakan IP khusus untuk Android Emulator
-  static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api/auth'; // IP khusus Android Emulator
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3000/api/auth'; // iOS Simulator bisa pakai localhost
-    } else {
-      return 'http://localhost:3000/api/auth'; // Web/Desktop
-    }
+  // Inisialisasi endpoint saat pertama kali digunakan
+  static Future<void> _initializeEndpoint() async {
+    await ApiConfig.baseUrl; // Ini akan melakukan pengecekan dan caching
   }
 
   Future<User> register({
@@ -22,6 +17,9 @@ class AuthService {
     required String password,
   }) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
       print('🔄 Registering user: $email');
       print('🌐 Using URL: $baseUrl/register');
       
@@ -36,7 +34,7 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 15)); // Increase timeout
+      ).timeout(const Duration(seconds: 15));
 
       print('📝 Registration response: ${response.statusCode}');
       print('📝 Response body: ${response.body}');
@@ -60,8 +58,11 @@ class AuthService {
       }
     } catch (e) {
       print('❌ Registration error: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Please ensure backend is running on port 3000');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
       }
       throw Exception('Registration error: $e');
     }
@@ -72,6 +73,9 @@ class AuthService {
     required String password,
   }) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
       print('🔄 Logging in user: $email');
       print('🌐 Using URL: $baseUrl/login');
       
@@ -87,8 +91,8 @@ class AuthService {
         }),
       ).timeout(const Duration(seconds: 15));
 
-      print('🔐 Login response: ${response.statusCode}');
-      print('🔐 Response body: ${response.body}');
+      print('📝 Login response: ${response.statusCode}');
+      print('📝 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -109,8 +113,11 @@ class AuthService {
       }
     } catch (e) {
       print('❌ Login error: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Please ensure backend is running on port 3000');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
       }
       throw Exception('Login error: $e');
     }
@@ -118,6 +125,9 @@ class AuthService {
 
   Future<Map<String, dynamic>> forgotPassword({required String email}) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
       print('🔄 Sending forgot password request for: $email');
       print('🌐 Using URL: $baseUrl/forgot-password');
       
@@ -127,41 +137,32 @@ class AuthService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: json.encode({'email': email}),
+        body: json.encode({
+          'email': email,
+        }),
       ).timeout(const Duration(seconds: 15));
 
-      print('📧 Forgot password response: ${response.statusCode}');
-      print('📧 Response body: ${response.body}');
+      print('📝 Forgot password response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        // Dalam development mode, backend mengirim reset token
-        if (data['resetToken'] != null) {
-          print('🔑 Development Mode - Reset Token: ${data['resetToken']}');
-          print('⏰ Expires At: ${data['expiresAt']}');
-        }
-        
+        print('✅ Password reset email sent successfully');
+        final responseData = json.decode(response.body);
         return {
-          'success': data['success'] ?? true,
-          'message': data['message'] ?? 'Reset instructions sent',
-          'resetToken': data['resetToken'], // Available in development mode
-          'expiresAt': data['expiresAt'], // Available in development mode
+          'message': responseData['message'] ?? 'Reset instructions sent to your email',
+          'resetToken': responseData['resetToken'], // May be null in production
+          'expiresAt': responseData['expiresAt'], // May be null in production
         };
       } else {
         final error = json.decode(response.body);
-        if (error['errors'] != null && error['errors'] is List) {
-          final errorMessages = (error['errors'] as List)
-              .map((e) => e['msg'] ?? e['message'] ?? 'Unknown error')
-              .join(', ');
-          throw Exception(errorMessages);
-        }
         throw Exception(error['error'] ?? 'Failed to send reset email');
       }
     } catch (e) {
       print('❌ Forgot password error: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Please ensure backend is running on port 3000');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
       }
       throw Exception('Forgot password error: $e');
     }
@@ -172,15 +173,23 @@ class AuthService {
     required String newPassword,
   }) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
       print('🔄 Resetting password with token: $token');
+      print('🌐 Using URL: $baseUrl/reset-password');
+      
       final response = await http.post(
         Uri.parse('$baseUrl/reset-password'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: json.encode({
           'token': token,
           'newPassword': newPassword,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
 
       print('🔐 Reset password response: ${response.statusCode}');
       print('🔐 Response body: ${response.body}');
@@ -203,6 +212,12 @@ class AuthService {
       }
     } catch (e) {
       print('❌ Reset password error: $e');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
       throw Exception('Reset password error: $e');
     }
   }
@@ -214,6 +229,9 @@ class AuthService {
     String? avatar,
   }) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
       print('🔄 Updating profile for: $name');
       final token = await getToken();
       if (token == null) throw Exception('No authentication token');
@@ -248,6 +266,12 @@ class AuthService {
         await _updateStoredUser(user);
         print('✅ Profile updated successfully');
         return user;
+      } else if (response.statusCode == 401) {
+        // Token is invalid or expired
+        await logout();
+        throw Exception('Authentication expired. Please login again.');
+      } else if (response.statusCode == 404) {
+        throw Exception('User not found. Please contact support.');
       } else {
         final error = json.decode(response.body);
         if (error['errors'] != null && error['errors'] is List) {
@@ -260,10 +284,77 @@ class AuthService {
       }
     } catch (e) {
       print('❌ Profile update error: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Please ensure backend is running on port 3000');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
       }
+      
+      // If it's a "User not found" error, suggest re-authentication
+      if (e.toString().contains('User not found')) {
+        await logout();
+        throw Exception('User session expired. Please login again.');
+      }
+      
       throw Exception('Profile update error: $e');
+    }
+  }
+
+  // Method baru untuk direct password reset
+  Future<Map<String, dynamic>> directPasswordReset({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
+      
+      print('🔄 Direct password reset for: $email');
+      print('🌐 Using URL: $baseUrl/direct-password-reset');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/direct-password-reset'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({
+          'email': email,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      print('🔐 Direct password reset response: ${response.statusCode}');
+      print('🔐 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        return {
+          'success': data['success'] ?? true,
+          'message': data['message'] ?? 'Password berhasil diubah',
+          'user': data['user'], // User data yang sudah diupdate
+        };
+      } else {
+        final error = json.decode(response.body);
+        if (error['errors'] != null && error['errors'] is List) {
+          final errorMessages = (error['errors'] as List)
+              .map((e) => e['msg'] ?? e['message'] ?? 'Unknown error')
+              .join(', ');
+          throw Exception(errorMessages);
+        }
+        throw Exception(error['error'] ?? 'Failed to reset password');
+      }
+    } catch (e) {
+      print('❌ Direct password reset error: $e');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
+      throw Exception('Direct password reset error: $e');
     }
   }
 
@@ -296,7 +387,17 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      print('🔍 Retrieved token: ${token != null ? 'Found' : 'Not found'}');
+      
+      if (token != null) {
+        print('🔍 Retrieved token: Found');
+        print('🔑 JWT Token for backend testing:');
+        print('Bearer $token');
+        print('📋 Raw token: $token');
+        print('─' * 50);
+      } else {
+        print('🔍 Retrieved token: Not found');
+      }
+      
       return token;
     } catch (e) {
       print('❌ Error getting token: $e');
@@ -383,54 +484,55 @@ class AuthService {
     return result;
   }
 
-  // Method baru untuk direct password reset
-  Future<Map<String, dynamic>> directPasswordReset({
-    required String email,
-    required String newPassword,
-  }) async {
+  Future<User> fetchCurrentUserProfile() async {
     try {
-      print('🔄 Direct password reset for: $email');
-      print('🌐 Using URL: $baseUrl/direct-password-reset');
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.authUrl;
       
-      final response = await http.post(
-        Uri.parse('$baseUrl/direct-password-reset'),
+      final token = await getToken();
+      if (token == null) throw Exception('No authentication token');
+
+      print('🔄 Fetching current user profile...');
+      print('🌐 Using URL: $baseUrl/profile');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/profile'),
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
         },
-        body: json.encode({
-          'email': email,
-          'newPassword': newPassword,
-        }),
       ).timeout(const Duration(seconds: 15));
 
-      print('🔐 Direct password reset response: ${response.statusCode}');
-      print('🔐 Response body: ${response.body}');
+      print('📝 Fetch profile response: ${response.statusCode}');
+      print('📝 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final userData = data['user'] ?? data;
+        final user = User.fromJson(userData);
         
-        return {
-          'success': data['success'] ?? true,
-          'message': data['message'] ?? 'Password berhasil diubah',
-          'user': data['user'], // User data yang sudah diupdate
-        };
+        // Update stored user data
+        await _updateStoredUser(user);
+        print('✅ Profile fetched successfully');
+        return user;
+      } else if (response.statusCode == 401) {
+        // Token is invalid or expired
+        await logout();
+        throw Exception('Authentication expired. Please login again.');
+      } else if (response.statusCode == 404) {
+        throw Exception('User not found. Please contact support.');
       } else {
         final error = json.decode(response.body);
-        if (error['errors'] != null && error['errors'] is List) {
-          final errorMessages = (error['errors'] as List)
-              .map((e) => e['msg'] ?? e['message'] ?? 'Unknown error')
-              .join(', ');
-          throw Exception(errorMessages);
-        }
-        throw Exception(error['error'] ?? 'Failed to reset password');
+        throw Exception(error['error'] ?? 'Failed to fetch profile');
       }
     } catch (e) {
-      print('❌ Direct password reset error: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Please ensure backend is running on port 3000');
+      print('❌ Fetch profile error: $e');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
       }
-      throw Exception('Direct password reset error: $e');
+      rethrow;
     }
   }
 }

@@ -15,12 +15,30 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/direct_password_reset_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/add_user_screen.dart';
+import 'config/api_config.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Reset cache untuk menggunakan URL baru
+  print('🔄 Resetting API cache for new endpoint...');
+  ApiConfig.resetCache();
+  
+  // Inisialisasi endpoint saat aplikasi dimulai
+  print('🚀 Initializing API endpoint...');
+  try {
+    final endpoint = await ApiConfig.baseUrl;
+    print('✅ API endpoint initialized: $endpoint');
+  } catch (e) {
+    print('⚠️ Failed to initialize API endpoint: $e');
+  }
+  
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -34,51 +52,44 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Astronacce App',
+        title: 'Astronacce Test Mobile Apps',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: AuthWrapper(),
+        home: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            if (state is AuthLoading) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            } else if (state is AuthAuthenticated) {
+              // Load users when authenticated
+              context.read<UserBloc>().add(LoadUsers());
+              return UserListScreen();
+            } else {
+              return LoginScreen();
+            }
+          },
+        ),
         routes: {
           '/login': (context) => LoginScreen(),
           '/register': (context) => RegisterScreen(),
           '/forgot-password': (context) => ForgotPasswordScreen(),
           '/direct-password-reset': (context) => DirectPasswordResetScreen(),
-          '/user-list': (context) => UserListScreen(),
+          '/users': (context) => UserListScreen(),
           '/add-user': (context) => AddUserScreen(),
-          '/edit-profile': (context) => EditProfileScreen(
-            user: ModalRoute.of(context)!.settings.arguments as User,
-          ),
         },
-      ),
-    );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        // Reset UserBloc ketika user logout
-        if (state is AuthUnauthenticated) {
-          context.read<UserBloc>().add(ResetUsers());
-        }
-      },
-      child: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, state) {
-          if (state is AuthLoading) {
-            return Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+        onGenerateRoute: (settings) {
+          if (settings.name == '/edit-profile') {
+            final user = settings.arguments as User;
+            return MaterialPageRoute(
+              builder: (context) => EditProfileScreen(user: user),
             );
-          } else if (state is AuthAuthenticated) {
-            return UserListScreen();
-          } else {
-            return LoginScreen();
           }
+          return null;
         },
       ),
     );

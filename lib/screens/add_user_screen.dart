@@ -113,6 +113,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
                     labelText: 'Phone Number',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.phone),
+                    helperText: 'Enter phone number starting with 08',
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -123,6 +124,9 @@ class _AddUserScreenState extends State<AddUserScreen> {
                     if (value != null && value.isNotEmpty) {
                       if (value.length < 10) {
                         return 'Phone number must be at least 10 digits';
+                      }
+                      if (!value.startsWith('08')) {
+                        return 'Phone number must start with 08';
                       }
                     }
                     return null;

@@ -58,8 +58,9 @@ class _DirectPasswordResetScreenState extends State<DirectPasswordResetScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                // Di _showAlertDialog method (line 40-70)
                 if (isSuccess) {
-                  // Kembali ke login screen setelah berhasil
+                  // Hanya kembali ke login screen, TIDAK logout
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }
               },
@@ -80,35 +81,6 @@ class _DirectPasswordResetScreenState extends State<DirectPasswordResetScreen> {
         ),
       );
     }
-  }
-
-  Widget _buildPasswordStrengthIndicator() {
-    if (_passwordController.text.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Password Requirements:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          _buildRequirementItem('At least 6 characters', _passwordStrength['minLength'] ?? false),
-          _buildRequirementItem('Contains uppercase letter', _passwordStrength['hasUppercase'] ?? false),
-          _buildRequirementItem('Contains lowercase letter', _passwordStrength['hasLowercase'] ?? false),
-          _buildRequirementItem('Contains number', _passwordStrength['hasNumber'] ?? false),
-          _buildRequirementItem('Contains special character', _passwordStrength['hasSpecialChar'] ?? false),
-        ],
-      ),
-    );
   }
 
   Widget _buildRequirementItem(String text, bool isMet) {
@@ -138,20 +110,25 @@ class _DirectPasswordResetScreenState extends State<DirectPasswordResetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reset Password'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Reset Password', style: TextStyle(color: Colors.white),),
+        backgroundColor: Colors.blue,
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
             _showAlertDialog('Reset Failed', state.message);
+          // Di BlocListener untuk AuthDirectPasswordResetSuccess
           } else if (state is AuthDirectPasswordResetSuccess) {
-            _showAlertDialog(
-              'Password Reset Successful',
-              (state as AuthDirectPasswordResetSuccess).message,
-              isSuccess: true,
-            );
+          // Logout otomatis untuk menghapus token lama
+          context.read<AuthBloc>().add(AuthLogoutRequested());
+          
+          _showAlertDialog(
+          'Password Reset Successful',
+          'Password berhasil diubah. Silakan login dengan password baru.',
+          isSuccess: true,
+          );
           }
         },
         child: SafeArea(
@@ -265,8 +242,6 @@ class _DirectPasswordResetScreenState extends State<DirectPasswordResetScreen> {
                     },
                   ),
                   
-                  // Password Strength Indicator
-                  _buildPasswordStrengthIndicator(),
                   const SizedBox(height: 20),
 
                   // Confirm Password Input

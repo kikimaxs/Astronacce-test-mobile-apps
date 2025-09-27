@@ -4,21 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class UserRepository {
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000/api/users';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api/users';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3000/api/users';
-    } else {
-      return 'http://localhost:3000/api/users';
-    }
-  }
-
   final AuthService _authService = AuthService();
+
+  // Inisialisasi endpoint saat pertama kali digunakan
+  static Future<void> _initializeEndpoint() async {
+    await ApiConfig.baseUrl; // Ini akan melakukan pengecekan dan caching
+  }
 
   Future<UsersResponse> getUsers({
     String? search,
@@ -26,63 +20,109 @@ class UserRepository {
     int limit = 10,
   }) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.usersUrl;
+      
       final token = await _authService.getToken();
       if (token == null) throw Exception('No authentication token');
 
+      // Build query parameters
       final queryParams = <String, String>{
         'page': page.toString(),
         'limit': limit.toString(),
       };
+      
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
       }
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+      
+      print('🔄 Fetching users from: $uri');
+
       final response = await http.get(
         uri,
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
+
+      print('👥 Users response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        return UsersResponse.fromJson(json.decode(response.body));
+        final data = json.decode(response.body);
+        return UsersResponse.fromJson(data);
+      } else if (response.statusCode == 401) {
+        await _authService.logout();
+        throw Exception('Session expired. Please login again.');
       } else {
         final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Failed to load users');
+        throw Exception(error['error'] ?? 'Failed to fetch users');
       }
     } catch (e) {
-      throw Exception('Error loading users: $e');
+      print('❌ Get users error: $e');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
+      throw Exception('Get users error: $e');
     }
   }
 
-  Future<User> getUserById(int id) async {
+  Future<User> getUserById(String id) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.usersUrl;
+      
       final token = await _authService.getToken();
       if (token == null) throw Exception('No authentication token');
+
+      print('🔄 Fetching user by ID: $id from: $baseUrl/$id');
 
       final response = await http.get(
         Uri.parse('$baseUrl/$id'),
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
+
+      print('👤 User by ID response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        return User.fromJson(json.decode(response.body));
+        final data = json.decode(response.body);
+        return User.fromJson(data['user']);
+      } else if (response.statusCode == 401) {
+        await _authService.logout();
+        throw Exception('Session expired. Please login again.');
+      } else if (response.statusCode == 404) {
+        throw Exception('User not found');
       } else {
         final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Failed to load user');
+        throw Exception(error['error'] ?? 'Failed to fetch user');
       }
     } catch (e) {
-      throw Exception('Error loading user: $e');
+      print('❌ Get user by ID error: $e');
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
+      throw Exception('Get user by ID error: $e');
     }
   }
 
   Future<User> createUser(User user) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.usersUrl;
+      
       final token = await _authService.getToken();
       if (token == null) throw Exception('No authentication token');
 
@@ -117,12 +157,21 @@ class UserRepository {
       }
     } catch (e) {
       print('Error creating user: $e'); // Debug log
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
       throw Exception('Failed to create user: $e');
     }
   }
 
   Future<User> updateUser(User user) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.usersUrl;
+      
       final token = await _authService.getToken();
       if (token == null) throw Exception('No authentication token');
 
@@ -153,12 +202,21 @@ class UserRepository {
         throw Exception(error['error'] ?? 'Failed to update user');
       }
     } catch (e) {
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
       throw Exception('Error updating user: $e');
     }
   }
 
   Future<void> deleteUser(int id) async {
     try {
+      await _initializeEndpoint();
+      final baseUrl = await ApiConfig.usersUrl;
+      
       final token = await _authService.getToken();
       if (token == null) throw Exception('No authentication token');
 
@@ -175,13 +233,21 @@ class UserRepository {
         throw Exception(error['error'] ?? 'Failed to delete user');
       }
     } catch (e) {
+      if (e.toString().contains('Connection refused') || 
+          e.toString().contains('Failed host lookup')) {
+        // Reset cache dan coba endpoint lain
+        ApiConfig.resetCache();
+        throw Exception('Cannot connect to server. Trying alternative endpoint...');
+      }
       throw Exception('Error deleting user: $e');
     }
   }
 
   Future<bool> testConnection() async {
     try {
-      final healthUrl = baseUrl.replaceAll('/api/users', '/health');
+      await _initializeEndpoint();
+      final healthUrl = await ApiConfig.healthUrl;
+      
       final response = await http.get(
         Uri.parse(healthUrl),
         headers: {'Content-Type': 'application/json'},

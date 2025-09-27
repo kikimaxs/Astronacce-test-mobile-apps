@@ -9,6 +9,7 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../models/user.dart';
 import '../repositories/user_repository.dart';
+import '../widgets/connection_status_widget.dart';
 import 'add_user_screen.dart';
 import 'user_detail_screen.dart';
 import 'edit_profile_screen.dart';
@@ -75,109 +76,126 @@ class _UserListScreenState extends State<UserListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home', style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('Home'),
         backgroundColor: Colors.blue,
-        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
+        elevation: 2,
         actions: [
-          // Menu dropdown untuk profile actions - hanya icon menu di header
           BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, state) {
-              if (state is AuthAuthenticated) {
-                return PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.menu,
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  onSelected: (value) async {
-                    if (value == 'edit_profile') {
-                      await Navigator.push(
+            builder: (context, authState) {
+              return PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'profile') {
+                    if (authState is AuthAuthenticated) {
+                      Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => EditProfileScreen(user: state.user),
+                          builder: (context) => EditProfileScreen(user: authState.user),
                         ),
                       );
-                    } else if (value == 'logout') {
-                      await _showLogoutDialog(context);
                     }
-                  },
-                  itemBuilder: (BuildContext context) {
-                    return [
+                  } else if (value == 'logout') {
+                    await _showLogoutDialog(context);
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  List<PopupMenuEntry<String>> items = [];
+                  
+                  // Header dengan avatar dan nama user
+                  if (authState is AuthAuthenticated) {
+                    items.add(
                       PopupMenuItem<String>(
-                        enabled: false,
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.grey[400],
-                              backgroundImage: state.user.avatar != null && state.user.avatar!.isNotEmpty
-                                  ? NetworkImage(state.user.avatar!)
-                                  : null,
-                              child: state.user.avatar == null || state.user.avatar!.isEmpty
-                                  ? Text(
-                                      state.user.name.isNotEmpty ? state.user.name[0].toUpperCase() : 'U',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    state.user.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Text(
-                                    state.user.email,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                        enabled: false, // Tidak bisa diklik
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              // Avatar
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: Colors.grey[300],
+                                backgroundImage: authState.user.avatar != null && 
+                                                authState.user.avatar!.isNotEmpty
+                                    ? NetworkImage(authState.user.avatar!)
+                                    : null,
+                                child: authState.user.avatar == null || 
+                                       authState.user.avatar!.isEmpty
+                                    ? Text(
+                                        authState.user.name.isNotEmpty 
+                                            ? authState.user.name[0].toUpperCase()
+                                            : 'U',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 12),
+                              // Nama dan email
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      authState.user.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      authState.user.email,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                    );
+                    
+                    // Divider
+                    items.add(
                       const PopupMenuDivider(),
-                      const PopupMenuItem<String>(
-                        value: 'edit_profile',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20, color: Colors.grey),
-                            SizedBox(width: 12),
-                            Text('Edit Profile'),
-                          ],
-                        ),
+                    );
+                  }
+                  
+                  // Menu items
+                  items.addAll([
+                    const PopupMenuItem<String>(
+                      value: 'profile',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Edit Profile'),
+                        ],
                       ),
-                      const PopupMenuItem<String>(
-                        value: 'logout',
-                        child: Row(
-                          children: [
-                            Icon(Icons.logout, size: 20, color: Colors.grey),
-                            SizedBox(width: 12),
-                            Text('Logout'),
-                          ],
-                        ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Logout'),
+                        ],
                       ),
-                    ];
-                  },
-                );
-              }
-              return const SizedBox.shrink();
+                    ),
+                  ]);
+                  
+                  return items;
+                },
+                icon: const Icon(Icons.menu, color: Colors.white),
+              );
             },
           ),
         ],
